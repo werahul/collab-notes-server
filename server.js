@@ -1,45 +1,50 @@
-const dotenv =  require('dotenv')
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const mongoose = require('mongoose');
-const cors = require('cors');
+const dotenv = require("dotenv");
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-const allowedOrigins = ['https://collab-notes-client.vercel.app/'];
+const allowedOrigins = "https://collab-notes-client.vercel.app/";
 dotenv.config();
 
 const app = express();
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'PUT']
-}));
-app.use(express.json()); 
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT"],
+  })
+);
+app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URL)
+mongoose
+  .connect(process.env.MONGO_URL)
   .then(() => console.log("✅ MongoDB connected"))
-  .catch(err => console.error("❌ Mongo error:", err));
-
+  .catch((err) => console.error("❌ Mongo error:", err));
 
 const NoteSchema = new mongoose.Schema({
   title: String,
   content: { type: String, default: "" },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
 });
 const Note = mongoose.model("Note", NoteSchema);
 
-
-
-
-app.post("/notes", async (req, res) => {
-  try {
-    const note = new Note({ title: req.body.title });
-    await note.save();
-    res.json(note);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+app.post(
+  "/notes",
+  cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT"],
+  }),
+  async (req, res) => {
+    try {
+      const note = new Note({ title: req.body.title });
+      await note.save();
+      res.json(note);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
-});
-
+);
 
 app.get("/notes/:id", async (req, res) => {
   try {
@@ -50,7 +55,6 @@ app.get("/notes/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 app.put("/notes/:id", async (req, res) => {
   try {
@@ -65,19 +69,17 @@ app.put("/notes/:id", async (req, res) => {
   }
 });
 
-
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, methods: ['GET', 'POST', 'PUT'] }
+  cors: { origin: allowedOrigins, methods: ["GET", "POST", "PUT"] },
 });
-
 
 const rooms = new Map();
 
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
 
-  socket.on('join_note', ({ noteId, name }) => {
+  socket.on("join_note", ({ noteId, name }) => {
     socket.join(noteId);
     socket.data.noteId = noteId;
     socket.data.name = name;
@@ -89,14 +91,14 @@ io.on('connection', (socket) => {
     }
     set.set(socket.id, name);
 
-    io.to(noteId).emit('active_users', Array.from(set.values()));
+    io.to(noteId).emit("active_users", Array.from(set.values()));
   });
 
-  socket.on('note_update', ({ noteId, content }) => {
-    socket.to(noteId).emit('note_update', { content });
+  socket.on("note_update", ({ noteId, content }) => {
+    socket.to(noteId).emit("note_update", { content });
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     const noteId = socket.data.noteId;
     if (noteId && rooms.has(noteId)) {
       const set = rooms.get(noteId);
@@ -104,10 +106,10 @@ io.on('connection', (socket) => {
       if (set.size === 0) {
         rooms.delete(noteId);
       } else {
-        io.to(noteId).emit('active_users', Array.from(set.values()));
+        io.to(noteId).emit("active_users", Array.from(set.values()));
       }
     }
-    console.log('Socket disconnected:', socket.id);
+    console.log("Socket disconnected:", socket.id);
   });
 });
 
