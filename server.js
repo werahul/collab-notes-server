@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
-const allowedOrigins = ['http://localhost:5173'];
+const allowedOrigins = ['https://collab-notes-client.vercel.app/'];
 dotenv.config();
 
 const app = express();
